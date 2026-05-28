@@ -255,19 +255,12 @@
 <div class="card">
   <div class="header">
     <div class="logo">🍱</div>
-    <div class="title" id="display-name">Registro de comidas</div>
+    <div class="title">Registro de Dietas</div>
+    <div class="month-label" id="display-name" style="font-size:15px; font-weight:600; color:#444; margin-top:2px;">J12 Miguel</div>
     <div class="month-label" id="display-month"></div>
   </div>
 
-  <div class="field-label">Tu nombre</div>
-  <input
-    class="name-input"
-    type="text"
-    id="driver-name"
-    placeholder="Ej: Juan García"
-    oninput="document.getElementById('display-name').textContent = this.value.trim() || 'Registro de comidas'"
-    autocomplete="name"
-  />
+  <input type="hidden" id="driver-name" value="J12 Miguel" />
 
   <div class="legend">
     <div class="legend-item"><div class="legend-dot dot-none"></div> Sin marcar</div>
