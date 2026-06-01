@@ -254,7 +254,10 @@
       min-height: 20px;
     }
 
-    .clear-btn {
+    .send-all-btn {
+      margin-top: 8px;
+      background: #128C7E;
+    }
       width: 100%;
       padding: 10px;
       border-radius: 10px;
@@ -317,7 +320,11 @@
 
   <button class="send-btn" onclick="sendWhatsApp()">
     <i class="ti ti-brand-whatsapp"></i>
-    Enviar reporte
+    Enviar reporte (este mes)
+  </button>
+  <button class="send-btn send-all-btn" onclick="sendAll()">
+    <i class="ti ti-brand-whatsapp"></i>
+    Enviar todo (todos los meses)
   </button>
   <div class="status-bar" id="status"></div>
   <button class="clear-btn" onclick="clearAll()">Borrar todo</button>
@@ -466,6 +473,48 @@
       }
     });
     return hasAny ? msg.trim() : null;
+  }
+
+  function sendAll() {
+    const name = document.getElementById('driver-name').value.trim() || 'Chofer';
+    let msg = '🍱 Reporte de dietas\n👤 ' + name + '\n\n';
+    let hasAny = false;
+
+    // collect all month keys that have data, sorted chronologically
+    const keys = Object.keys(allState).sort();
+
+    keys.forEach(key => {
+      const [y, m] = key.split('-').map(Number);
+      const state = allState[key];
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const monthStr = MONTHS_ES[m] + ' ' + y;
+      let monthMsg = '';
+
+      MEALS.forEach(meal => {
+        const casaDays = [], tarjetaDays = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          if (state[d] && state[d][meal] === 'casa') casaDays.push(d);
+          else if (state[d] && state[d][meal] === 'tarjeta') tarjetaDays.push(d);
+        }
+        if (casaDays.length || tarjetaDays.length) {
+          monthMsg += MEAL_EMOJI[meal] + ' ' + MEAL_LABEL[meal] + ':\n';
+          if (casaDays.length) monthMsg += '  🏠 Casa → días ' + casaDays.join(', ') + '\n';
+          if (tarjetaDays.length) monthMsg += '  💳 Tarjeta → días ' + tarjetaDays.join(', ') + '\n';
+        }
+      });
+
+      if (monthMsg) {
+        hasAny = true;
+        msg += '📅 ' + monthStr.charAt(0).toUpperCase() + monthStr.slice(1) + '\n' + monthMsg + '\n';
+      }
+    });
+
+    if (!hasAny) {
+      document.getElementById('status').textContent = 'No hay ningún día marcado en ningún mes.';
+      return;
+    }
+
+    window.open('https://wa.me/34658971042?text=' + encodeURIComponent(msg.trim()), '_blank');
   }
 
   function sendWhatsApp() {
