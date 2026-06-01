@@ -38,11 +38,39 @@
       color: #1a1a1a;
     }
 
+    .month-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .nav-btn {
+      background: #f5f5f0;
+      border: 1.5px solid #ebebeb;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #666;
+      transition: all 0.15s;
+      font-size: 16px;
+    }
+
+    .nav-btn:hover { background: #ebebeb; }
+    .nav-btn:active { transform: scale(0.93); }
+
     .month-label {
-      font-size: 13px;
+      font-size: 14px;
       color: #888;
-      margin-top: 3px;
       text-transform: capitalize;
+      min-width: 130px;
+      text-align: center;
+      font-weight: 500;
     }
 
     .field-label {
@@ -257,7 +285,11 @@
     <div class="logo">🍱</div>
     <div class="title">Registro de Dietas</div>
     <div class="month-label" id="display-name" style="font-size:15px; font-weight:600; color:#444; margin-top:2px;">J12 Miguel</div>
-    <div class="month-label" id="display-month"></div>
+    <div class="month-nav">
+      <button class="nav-btn" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <span class="month-label" id="display-month"></span>
+      <button class="nav-btn" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
   </div>
 
   <input type="hidden" id="driver-name" value="J12 Miguel" />
@@ -299,31 +331,49 @@
   const MEAL_EMOJI = { breakfast: '☕', lunch: '🌞', dinner: '🌙' };
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let curYear = now.getFullYear();
+  let curMonth = now.getMonth();
 
-  document.getElementById('display-month').textContent = MONTHS_ES[month] + ' ' + year;
+  // state per month key "YYYY-M"
+  const allState = {};
 
-  const state = {};
-  for (let d = 1; d <= daysInMonth; d++) {
-    state[d] = { breakfast: null, lunch: null, dinner: null };
+  function monthKey(y, m) { return y + '-' + m; }
+
+  function getState(y, m) {
+    const key = monthKey(y, m);
+    if (!allState[key]) {
+      const days = new Date(y, m + 1, 0).getDate();
+      allState[key] = {};
+      for (let d = 1; d <= days; d++) {
+        allState[key][d] = { breakfast: null, lunch: null, dinner: null };
+      }
+    }
+    return allState[key];
   }
 
-  function buildRows() {
-    const list = document.getElementById('days-list');
-    for (let d = 1; d <= daysInMonth; d++) {
-      const wd = new Date(year, month, d).getDay();
-      const isWeekend = wd === 0 || wd === 6;
+  function changeMonth(dir) {
+    curMonth += dir;
+    if (curMonth > 11) { curMonth = 0; curYear++; }
+    if (curMonth < 0) { curMonth = 11; curYear--; }
+    renderAll();
+  }
 
+  function renderAll() {
+    const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+    document.getElementById('display-month').textContent = MONTHS_ES[curMonth] + ' ' + curYear;
+    const list = document.getElementById('days-list');
+    list.innerHTML = '';
+    const state = getState(curYear, curMonth);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const wd = new Date(curYear, curMonth, d).getDay();
+      const isWeekend = wd === 0 || wd === 6;
       const row = document.createElement('div');
       row.className = 'day-row' + (isWeekend ? ' weekend' : '');
-
       const label = document.createElement('div');
       label.className = 'day-label';
       label.innerHTML = d + '<span class="wd">' + DAYS_ES[wd] + '</span>';
       row.appendChild(label);
-
       MEALS.forEach(meal => {
         const btn = document.createElement('button');
         btn.id = 'btn-' + d + '-' + meal;
@@ -332,12 +382,18 @@
         btn.onclick = () => cycle(d, meal);
         row.appendChild(btn);
       });
-
       list.appendChild(row);
     }
+
+    // render current state of buttons
+    for (let d = 1; d <= daysInMonth; d++) {
+      MEALS.forEach(meal => renderBtn(d, meal));
+    }
+    updateSummary();
   }
 
   function cycle(day, meal) {
+    const state = getState(curYear, curMonth);
     const cur = state[day][meal];
     state[day][meal] = cur === null ? 'casa' : cur === 'casa' ? 'tarjeta' : null;
     renderBtn(day, meal);
@@ -346,8 +402,9 @@
   }
 
   function renderBtn(day, meal) {
-    const val = state[day][meal];
+    const val = getState(curYear, curMonth)[day][meal];
     const btn = document.getElementById('btn-' + day + '-' + meal);
+    if (!btn) return;
     if (val === 'casa') {
       btn.className = 'meal-btn casa';
       btn.innerHTML = '<i class="ti ti-home"></i> Casa';
@@ -361,20 +418,19 @@
   }
 
   function updateSummary() {
+    const state = getState(curYear, curMonth);
+    const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
     const casa = { breakfast: [], lunch: [], dinner: [] };
     const tarjeta = { breakfast: [], lunch: [], dinner: [] };
-
     for (let d = 1; d <= daysInMonth; d++) {
       MEALS.forEach(meal => {
         if (state[d][meal] === 'casa') casa[meal].push(d);
         else if (state[d][meal] === 'tarjeta') tarjeta[meal].push(d);
       });
     }
-
     const hasAny = MEALS.some(m => casa[m].length || tarjeta[m].length);
     const el = document.getElementById('summary');
     if (!hasAny) { el.classList.remove('visible'); return; }
-
     let html = '';
     MEALS.forEach(meal => {
       if (casa[meal].length || tarjeta[meal].length) {
@@ -384,17 +440,17 @@
         html += '<br>';
       }
     });
-
     el.innerHTML = html;
     el.classList.add('visible');
   }
 
   function buildMessage() {
     const name = document.getElementById('driver-name').value.trim() || 'Chofer';
-    const monthStr = MONTHS_ES[month] + ' ' + year;
-    let msg = '🍱 Reporte de comidas\n👤 ' + name + '\n📅 ' + monthStr + '\n\n';
+    const state = getState(curYear, curMonth);
+    const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+    const monthStr = MONTHS_ES[curMonth] + ' ' + curYear;
+    let msg = '🍱 Reporte de dietas\n👤 ' + name + '\n📅 ' + monthStr + '\n\n';
     let hasAny = false;
-
     MEALS.forEach(meal => {
       const casaDays = [], tarjetaDays = [];
       for (let d = 1; d <= daysInMonth; d++) {
@@ -409,7 +465,6 @@
         msg += '\n';
       }
     });
-
     return hasAny ? msg.trim() : null;
   }
 
@@ -423,6 +478,8 @@
   }
 
   function clearAll() {
+    const state = getState(curYear, curMonth);
+    const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) {
       MEALS.forEach(meal => { state[d][meal] = null; renderBtn(d, meal); });
     }
@@ -430,7 +487,7 @@
     document.getElementById('status').textContent = '';
   }
 
-  buildRows();
+  renderAll();
 </script>
 
 </body>
